@@ -1,0 +1,137 @@
+extends KinematicBody2D
+
+var speed = 200
+var velocity = Vector2()
+
+# Health Variables
+var health = 5
+var invincible = false
+var invincibility_time = 1.0
+
+# Attack Variables
+var can_attack = true
+var attack_cooldown = 0.5
+
+
+
+func _physics_process(_delta):
+	handle_input()
+	move_and_slide(velocity)
+
+func _process(delta):
+	handle_attack()
+
+func handle_input():
+	velocity = Vector2()
+	if Input.is_action_pressed("ui_right"):
+		velocity.x += 1
+	if Input.is_action_pressed("ui_left"):
+		velocity.x -= 1
+	if Input.is_action_pressed("ui_down"):
+		velocity.y += 1
+	if Input.is_action_pressed("ui_up"):
+		velocity.y -= 1
+	velocity = velocity.normalized() * speed
+	update_animation()
+
+func update_animation():
+	if velocity.x > 0:
+		$Sprite.flip_h = false
+	elif velocity.x < 0:
+		$Sprite.flip_h = true
+
+	if velocity.length() > 0:
+		$AnimationPlayer.play("walk")
+
+
+func handle_attack():
+	if Input.is_action_just_pressed("attack") and can_attack:
+		attack()
+
+func attack():
+	$Area2D/CollisionShape2D.disabled = false
+	$AnimationPlayer.play("attack")
+	can_attack = false
+	yield($AnimationPlayer, "animation_finished")
+	$Area2D/CollisionShape2D.disabled = true
+	yield(get_tree().create_timer(attack_cooldown), "timeout")
+	can_attack = true
+
+func take_damage(amount):
+	if not invincible:
+		health -= amount
+		invincible = true
+		$AnimationPlayer.play("hurt")
+		if health <= 0:
+			die()
+		else:
+			yield(get_tree().create_timer(invincibility_time), "timeout")
+			invincible = false
+
+func die():
+	print("Player died!")
+	queue_free()
+
+func _on_Area2D_body_entered(body):
+	if body.is_in_group("Enemy"):
+		if body.has_method("take_damage"):
+			body.take_damage(1)
+
+
+var fast = 100
+var life = 3
+var damage = 1
+var player = null
+
+func _reaady():
+	player = get_parent().get_node("Player")
+	if not player:
+		print("Player not found!")
+
+func _physics_processes(_delta):
+	if player:
+		var direction = (player.global_position - global_position).normalized()
+		move_and_slide(direction * speed)
+
+func taken_damage(amount):
+	life -= amount
+	$AnimationPlayer.play("hurt")
+	if life <= 0:
+		die()
+
+func death():
+	print("Enemy died!")
+	queue_free()
+
+func _on_Enemy_body_entered(body):
+	if body.name == "Player":
+		body.take_damage(damage)
+
+
+# Movement Variables
+
+
+var collision_velocity = Vector2()  # Velocity returned by move_and_slide()
+
+# Sprite reference
+onready var sprite = player
+
+
+# Handle player input
+
+	# Normalize the velocity and scale it by speed
+
+
+
+
+# Update the sprite direction and animation
+func update_sprite():
+	if velocity.x > 0:
+		sprite.flip_h = false  # Face right
+	elif velocity.x < 0:
+		sprite.flip_h = true  # Face left
+
+	if velocity.length() > 0:
+		$AnimationPlayer.play("walk")  # Walking animation
+	else:
+		$AnimationPlayer.play("idle")  # Idle animation
